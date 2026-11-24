@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const FPS = 30;
 (async () => {
-  const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+  const browser = await chromium.launch({ args: ['--allow-file-access-from-files','--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
   await page.goto('file://' + path.join(__dirname, 'scene.html'));
   await page.evaluate(() => window.ready);

@@ -8,6 +8,7 @@ html,body{margin:0;background:#000}canvas{display:block}
 </style></head>
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
+<script src="node_modules/three/build/three.min.js"></script>
 <script>
 // ====== À PERSONNALISER ======
 const CONFIG = {
@@ -18,6 +19,7 @@ const CONFIG = {
   photos: { dos: "photo_dos.jpg", face: "photo_face.jpg", detail: "photo_detail.jpg", fond: "fond_prairie.jpg", sommets: "fond_sommets.jpg" },
   credits: "Photos de fond : Kritzolina, Maryliflower – CC BY-SA 4.0 via Wikimedia Commons",
   vestes: { face: "photo_face_veste.png", dos: "photo_dos_veste.png" },
+  reliefs: { face: "photo_face_depth.png", dos: "photo_dos_depth.png" },
   atouts: ["COUPE-VENT", "RESPIRANTE", "COUTURES ÉTANCHES"],
 };
 // =============================
@@ -33,24 +35,55 @@ function rng(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/429
 const load=s=>{const i=new Image();i.src=s;return i};
 const P={dos:load(CONFIG.photos.dos),face:load(CONFIG.photos.face),detail:load(CONFIG.photos.detail),fond:load(CONFIG.photos.fond),sommets:load(CONFIG.photos.sommets)};
 const V={face:load(CONFIG.vestes.face),dos:load(CONFIG.vestes.dos)};
-// flottement : descente depuis le ciel puis balancement (comme la pub de référence)
-function floatJacket(img,x,y,h,t,t0,alpha=1,seed=0){
+const Dm={face:load(CONFIG.reliefs.face),dos:load(CONFIG.reliefs.dos)};
+// ---------- veste 3D (relief + photo en texture) ----------
+const G3=document.createElement('canvas');G3.width=G3.height=1400;
+let R3,S3,C3,JG;
+function buildMesh(img,dimg,thick){
+  const c=document.createElement('canvas');c.width=dimg.width;c.height=dimg.height;
+  const cx=c.getContext('2d');cx.drawImage(dimg,0,0);const dp=cx.getImageData(0,0,c.width,c.height).data;
+  const asp=img.width/img.height, nx=160, ny=Math.round(160/asp);
+  const geo=new THREE.PlaneGeometry(asp,1,nx,ny), pos=geo.attributes.position, uv=geo.attributes.uv;
+  for(let i=0;i<pos.count;i++){
+    const u=uv.getX(i),v=uv.getY(i);
+    const px=Math.min(c.width-1,Math.round(u*(c.width-1))), py=Math.min(c.height-1,Math.round((1-v)*(c.height-1)));
+    const o=(py*c.width+px)*4;pos.setZ(i,(dp[o]*256+dp[o+1])/65535*thick);
+  }
+  geo.computeVertexNormals();
+  const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;
+  const mat=new THREE.MeshStandardMaterial({map:tex,transparent:true,alphaTest:.5,roughness:.55,metalness:.0,side:THREE.FrontSide});
+  return new THREE.Mesh(geo,mat);
+}
+function init3D(){
+  R3=new THREE.WebGLRenderer({canvas:G3,alpha:true,antialias:true,preserveDrawingBuffer:true});
+  R3.setClearColor(0x000000,0);R3.outputEncoding=THREE.sRGBEncoding;
+  S3=new THREE.Scene();C3=new THREE.PerspectiveCamera(30,1,.1,100);C3.position.set(0,0,4.2);
+  S3.add(new THREE.AmbientLight(0xffffff,.42));
+  const key=new THREE.DirectionalLight(0xfff1de,.75);key.position.set(-2.5,2.2,3);S3.add(key);
+  const rim=new THREE.DirectionalLight(0xd6e8ff,1.1);rim.position.set(3,1.2,-2.5);S3.add(rim);
+  const rim2=new THREE.DirectionalLight(0xd6e8ff,.7);rim2.position.set(-3,.5,-2);S3.add(rim2);
+  const fill=new THREE.DirectionalLight(0xffffff,.15);fill.position.set(0,-2,2);S3.add(fill);
+  JG=new THREE.Group();
+  const f=buildMesh(V.face,Dm.face,.16);JG.add(f);
+  const b=buildMesh(V.dos,Dm.dos,.16);b.rotation.y=Math.PI;b.position.z=-.03;JG.add(b);
+  S3.add(JG);
+}
+// flottement : descente depuis le ciel, balancement et rotation 3D
+function floatJacket(which,x,y,h,t,t0,alpha=1,seed=0,spin=null){
   if(alpha<=0||t<t0)return;
-  const e=prog(t,t0,t0+1.8);
-  const drop=(1-(1-Math.pow(1-e,3)*(1+.0)))*0; // placeholder
-  const k=eOut(e), over=Math.sin(e*Math.PI)*.04;
-  let yy=y-(1-k)*(H*.9)+over*h*.3;
+  const e=prog(t,t0,t0+1.8), k=eOut(e), over=Math.sin(e*Math.PI)*.04;
   const tt=t+seed;
-  yy+=Math.sin(tt*2*Math.PI/3.4)*h*.022;
-  const rot=(1-k)*-.10+Math.sin(tt*2*Math.PI/4.6+.6)*.045;
-  const yaw=Math.sin(tt*2*Math.PI/5.8+1.1);
-  const sx=1-.07*(1-Math.cos(tt*2*Math.PI/5.8+1.1))/2, sk=yaw*.035;
-  const w=h*img.width/img.height;
+  let yy=y-(1-k)*(H*.9)+over*h*.3+Math.sin(tt*2*Math.PI/3.4)*h*.022;
+  const roll=(1-k)*-.10+Math.sin(tt*2*Math.PI/4.6+.6)*.04;
+  let yaw=(which==="dos"?Math.PI:0)+Math.sin(tt*2*Math.PI/6.2+1.1)*.38;
+  if(spin)yaw+=spin;
+  const pitch=Math.sin(tt*2*Math.PI/5.1)*.06;
+  JG.rotation.set(pitch,yaw,roll);
+  R3.render(S3,C3);
+  const size=h*2.25;
   ctx.save();ctx.globalAlpha=alpha;
-  ctx.translate(x+Math.sin(tt*2*Math.PI/7)*h*.015,yy);
-  ctx.rotate(rot);ctx.transform(sx,sk,0,1,0,0);
   ctx.shadowColor="rgba(0,10,30,.45)";ctx.shadowBlur=h*.08;ctx.shadowOffsetY=h*.05;
-  ctx.drawImage(img,-w/2,-h/2,w,h);
+  ctx.drawImage(G3,x+Math.sin(tt*2*Math.PI/7)*h*.015-size/2,yy-size/2,size,size);
   ctx.restore();
 }
 const logo=load(CONFIG.logo),logoA=load(CONFIG.logoA);
@@ -158,13 +191,13 @@ function render(t){
   if(t<5.2){const k=prog(t,0,5.2);
     photo(P.fond,lerp(1.48,1.58,eInOut(k)),.42,.29);
     shadeLeft(1,1150);
-    floatJacket(V.dos,1330,560,700,t,.4,1,0);}
+    floatJacket("dos",1330,560,700,t,.4,1,0);}
   // B 5-10 : la veste de face flotte, se balance
   if(t>=5&&t<10.3){const k=prog(t,5,10.3);
     const a=prog(t,5,5.15)*(1-prog(t,10,10.3));
     photo(P.fond,lerp(1.7,1.6,k),.6,.27,a);
     shadeLeft(prog(t,5.3,6),1000);
-    floatJacket(V.face,1300,560,880,t,5.05,a,2);}
+    floatJacket("face",1300,560,880,t,5.05,a,2,-2*Math.PI*(1-eOut(prog(t,5.0,6.4))));}
   // C 10-16 : détail déperlant
   if(t>=10&&t<16.3){const k=prog(t,10,16.3);
     photo(P.detail,lerp(1.0,1.45,eInOut(k)),lerp(.5,.6,eInOut(k)),lerp(.5,.66,eInOut(k)),prog(t,10,10.3)*(1-prog(t,16,16.3)));
@@ -173,12 +206,12 @@ function render(t){
   if(t>=16&&t<19.7){const k=prog(t,16,19.7);
     photo(P.sommets,lerp(1.3,1.1,eOut(k)),.55,.45,prog(t,16,16.3));
     shadeLeft(1-prog(t,18.8,19.3),1150);
-    floatJacket(V.dos,1360,560,760,t,15.6,prog(t,16,16.3)*(1-prog(t,18.9,19.4)),5);}
+    floatJacket("dos",1360,560,760,t,15.6,prog(t,16,16.3)*(1-prog(t,18.9,19.4)),5);}
   // E 19-23 : la veste de face flotte à gauche + carton final
   if(t>=18.9){const rw=lerp(W,W*.62,eInOut(prog(t,18.9,19.6))),a=prog(t,18.9,19.4);
     photo(P.fond,lerp(1.8,1.86,prog(t,18.9,23)),.62,.28,a,0,rw);
     ctx.save();ctx.beginPath();ctx.rect(0,0,rw,H);ctx.clip();
-    floatJacket(V.face,rw/2+20,560,820,t,18.9,a,8);ctx.restore();}
+    floatJacket("face",rw/2+20,560,820,t,18.9,a,8,Math.PI*(1-eOut(prog(t,18.9,20.2))));ctx.restore();}
 
   const wind=Math.max(prog(t,4.6,5.1)*(1-prog(t,5.6,6.6)),prog(t,9.7,10)*(1-prog(t,10.2,10.6)),prog(t,15.7,16)*(1-prog(t,16.2,16.6)),prog(t,18.6,19)*(1-prog(t,19.3,19.8)));
   snow(t,wind,t>10&&t<16?.4:.8);
@@ -223,6 +256,6 @@ function render(t){
 }
 window.render=render;window.T=T;
 window.ready=Promise.all([document.fonts.load("italic 900 50px Disp"),document.fonts.load("600 50px Txt"),document.fonts.load("500 50px Txt"),
-  ...[P.dos,P.face,P.detail,P.fond,P.sommets,V.face,V.dos,logo,logoA].map(im=>new Promise(r=>{if(im.complete)r();else im.onload=r}))]);
+  ...[P.dos,P.face,P.detail,P.fond,P.sommets,V.face,V.dos,Dm.face,Dm.dos,logo,logoA].map(im=>new Promise(r=>{if(im.complete)r();else im.onload=r}))]).then(init3D);
 </script>
 </body></html>
