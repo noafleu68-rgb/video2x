@@ -6,3 +6,6 @@ part*.mp4
 log*.txt
 parts.txt
 check.jpg
+*_cutprev.jpg
+*_bgprev.jpg
+*_cut.png
