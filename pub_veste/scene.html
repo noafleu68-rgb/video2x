@@ -9,6 +9,7 @@ html,body{margin:0;background:#000}canvas{display:block}
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
 <script src="node_modules/three/build/three.min.js"></script>
+<script src="jacket_sim.js"></script>
 <script src="jacket3d.js"></script>
 <script>
 // ====== À PERSONNALISER ======
@@ -18,7 +19,7 @@ const CONFIG = {
   coords: "45°49′N   06°51′E",
   altitude: 2870,
   features: [
-    {anchor:"capuche", title:"CAPUCHE AJUSTABLE", sub:"compatible casque",   side:-1, y:270},
+    {anchor:"col",     title:"COL MONTANT",       sub:"coupe le vent",       side:-1, y:270},
     {anchor:"zip",     title:"IMPERMÉABLE",       sub:"coutures étanchées",  side: 1, y:470},
     {anchor:"poche",   title:"POCHES ZIPPÉES",    sub:"mains au chaud",      side:-1, y:690},
     {anchor:"poignet", title:"POIGNETS RÉGLABLES",sub:"fermeture velcro",    side: 1, y:780},
@@ -254,8 +255,8 @@ function render(t){
     txt(f.sub,tx,ly+52,26,prog(t,t0+.55,t0+1.05),{align:al,out:cO,weight:500,family:"Txt",color:TAN});
   });
   const dO=1-prog(t,18.7,19.0);
-  txt("FAITE POUR",110,520,132,prog(t,16.4,17.0),{out:dO});
-  txt("LES SOMMETS.",110,660,132,prog(t,16.7,17.3),{out:dO,color:OCHRE});
+  txt("FAITE POUR",110,520,116,prog(t,16.4,17.0),{out:dO});
+  txt("LES SOMMETS.",110,645,116,prog(t,16.7,17.3),{out:dO,color:OCHRE});
   endCard(t);
   for(const c of [5,10,16]){const f=(t>=c?1-prog(t,c,c+.35):0)*.55;if(f>0){ctx.fillStyle=`rgba(244,234,210,${f})`;ctx.fillRect(0,0,W,H)}}
   const fi=1-prog(t,0,.7),fo=prog(t,22.3,23);if(fi>0||fo>0){ctx.fillStyle=`rgba(0,0,0,${Math.max(fi,fo)})`;ctx.fillRect(0,0,W,H)}
