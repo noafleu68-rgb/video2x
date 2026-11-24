@@ -2,328 +2,197 @@
 <html><head><meta charset="utf-8">
 <style>
 @font-face{font-family:"Disp";src:url("file:///usr/share/fonts/opentype/inter/InterDisplay-BlackItalic.otf");font-weight:900;font-style:italic}
-@font-face{font-family:"Disp";src:url("file:///usr/share/fonts/opentype/inter/InterDisplay-BoldItalic.otf");font-weight:700;font-style:italic}
 @font-face{font-family:"Txt";src:url("file:///usr/share/fonts/opentype/inter/InterDisplay-SemiBold.otf");font-weight:600}
 @font-face{font-family:"Txt";src:url("file:///usr/share/fonts/opentype/inter/InterDisplay-Medium.otf");font-weight:500}
-html,body{margin:0;background:#000}
-canvas{display:block}
+html,body{margin:0;background:#000}canvas{display:block}
 </style></head>
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
 <script>
 // ====== À PERSONNALISER ======
 const CONFIG = {
-  brand: "ALPÉO",
-  logo: "logo_alpeo_blanc.png",
-  logoA: "logo_alpeo_A_blanc.png",
   product: "ALTITUDE 500",
   site: "votresite.fr",
-  jacket: "veste.svg",          // remplacer par la photo détourée (PNG transparent)
-  features: [
-    {title:"CAPUCHE AJUSTABLE", sub:"compatible casque",     anchor:[300,70],  side:-1},
-    {title:"IMPERMÉABLE",       sub:"coutures étanchées",    anchor:[245,470], side: 1},
-    {title:"ZIPS D'AÉRATION",   sub:"respirante à l'effort", anchor:[250,320], side:-1},
-    {title:"POIGNETS RÉGLABLES",sub:"zéro entrée de neige",  anchor:[530,548], side: 1},
-  ],
+  logo: "logo_alpeo_blanc.png",
+  logoA: "logo_alpeo_A_blanc.png",
+  photos: { dos: "photo_dos.jpg", face: "photo_face.jpg", detail: "photo_detail.jpg" },
+  atouts: ["COUPE-VENT", "RESPIRANTE", "COUTURES ÉTANCHES"],
 };
 // =============================
 const W=1920,H=1080,T=23;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-const ORANGE="#ff7a1a",BLUE="#0b5fc4",NAVY="#06244a";
-
-// ---------- helpers ----------
+const ORANGE="#ff7a1a",BLUE="#0b5fc4";
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const lerp=(a,b,k)=>a+(b-a)*k;
 const prog=(t,a,b)=>clamp((t-a)/(b-a));
 const eOut=k=>1-Math.pow(1-k,3);
 const eInOut=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
-const eBack=k=>{const c1=1.5,c3=c1+1;return 1+c3*Math.pow(k-1,3)+c1*Math.pow(k-1,2)};
 function rng(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
+const load=s=>{const i=new Image();i.src=s;return i};
+const P={dos:load(CONFIG.photos.dos),face:load(CONFIG.photos.face),detail:load(CONFIG.photos.detail)};
+const logo=load(CONFIG.logo),logoA=load(CONFIG.logoA);
 
-// ---------- mountains ----------
-function makeLayer(seed,count,span,minW,maxW,minH,maxH){
-  const r=rng(seed),peaks=[];
-  for(let i=0;i<count;i++){
-    const px=(i+.2+r()*.6)/count*span, h=minH+r()*(maxH-minH);
-    peaks.push({px,h,wl:minW+r()*(maxW-minW),wr:minW+r()*(maxW-minW),face:.15+r()*.35});
-  }
-  const nz=[];for(let i=0;i<=256;i++)nz.push(r());
-  return {peaks,nz,span};
+// photo "cover" with zoom and focus point (cx,cy normalized in image), inside region rx..rx+rw
+function photo(img,zoom,cx,cy,alpha=1,rx=0,rw=W){
+  if(alpha<=0)return;
+  const s=Math.max(rw/img.width,H/img.height)*zoom, iw=img.width*s, ih=img.height*s;
+  const hx=rw/2/iw, hy=H/2/ih;
+  cx=clamp(cx,hx,1-hx); cy=clamp(cy,hy,1-hy);
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.beginPath();ctx.rect(rx,0,rw,H);ctx.clip();
+  ctx.drawImage(img,rx+rw/2-cx*iw,H/2-cy*ih,iw,ih);
+  ctx.restore();
 }
-const layers=[
-  Object.assign(makeLayer(11,7,3400,380,620,330,560),{base:760,col:["#c9d8ea","#9bb3cd"],snow:.42,par:.12}),
-  Object.assign(makeLayer(23,8,3200,300,520,240,420),{base:840,col:["#7e9aba","#58769a"],snow:.35,par:.28}),
-  Object.assign(makeLayer(37,9,3000,260,460,150,290),{base:930,col:["#3f5b7c","#2a425f"],snow:.25,par:.5}),
-  Object.assign(makeLayer(51,10,2800,260,500,70,170),{base:1040,col:["#1c2e44","#101c2c"],snow:0,par:.85}),
-];
-function hAt(L,x){ // height above base at layer-space x
-  let best=0;
-  for(const p of L.peaks)for(const o of [-L.span,0,L.span]){
-    const d=x-(p.px+o), w=d<0?p.wl:p.wr;
-    const v=p.h*(1-Math.abs(d)/w);
-    if(v>best)best=v}
-  const f=((x/L.span)%1+1)%1*256,i=Math.floor(f),k=f-i;
-  return best+lerp(L.nz[i],L.nz[i+1],k)*18+Math.sin(x*.05)*4;
-}
-function drawMountains(t,cam){
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,"#13294d");g.addColorStop(.38,"#3f6fa8");
-  g.addColorStop(.62,"#e9a983");g.addColorStop(.75,"#ffd8a6");g.addColorStop(1,"#ffe9c9");
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  const sx=W*.62-cam.x*.05,sy=600-t*6+cam.y*.05;
-  const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,560);
-  sg.addColorStop(0,"rgba(255,248,225,1)");sg.addColorStop(.08,"rgba(255,236,190,.95)");
-  sg.addColorStop(.3,"rgba(255,200,140,.35)");sg.addColorStop(1,"rgba(255,180,120,0)");
-  ctx.fillStyle=sg;ctx.fillRect(0,0,W,H);
-  layers.forEach((L,li)=>{
-    const ox=cam.x*L.par+300, oy=cam.y*L.par;
-    const path=new Path2D();path.moveTo(-10,H+10);
-    for(let x=-10;x<=W+10;x+=3)path.lineTo(x,L.base-hAt(L,x+ox)+oy);
-    path.lineTo(W+10,H+10);path.closePath();
-    const top=Math.max(...L.peaks.map(p=>p.h));
-    const lg=ctx.createLinearGradient(0,L.base-top+oy,0,H);
-    lg.addColorStop(0,L.col[0]);lg.addColorStop(1,L.col[1]);
-    ctx.fillStyle=lg;ctx.fill(path);
-    ctx.save();ctx.clip(path);
-    // snow caps
-    if(L.snow>0){
-      for(const p of L.peaks)for(const o of [-L.span,0,L.span]){
-        const ax=p.px+o-ox; if(ax<-800||ax>W+800)continue;
-        const ay=L.base-p.h+oy, sd=p.h*L.snow;
-        ctx.fillStyle="#f6f9fd";ctx.beginPath();ctx.moveTo(ax-p.wl*1.2,ay-40);ctx.lineTo(ax+p.wr*1.2,ay-40);
-        for(let k=0;k<=8;k++){const fx=1-k/8*2;const xx=ax+fx*(fx>0?p.wr:p.wl)*L.snow*1.05;
-          ctx.lineTo(xx,ay+sd*(.75+((k*37)%11)/11*.5)-(k%2?sd*.25:0))}
-        ctx.closePath();ctx.globalAlpha=.95;ctx.fill();ctx.globalAlpha=1;
-      }
-    }
-    // shadow faces (light from the left/sun)
-    for(const p of L.peaks)for(const o of [-L.span,0,L.span]){
-      const ax=p.px+o-ox; if(ax<-800||ax>W+800)continue;
-      const ay=L.base-p.h+oy;
-      ctx.fillStyle=li<3?"rgba(20,40,75,.30)":"rgba(0,0,0,.25)";
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax+p.wr+20,L.base+oy+20);ctx.lineTo(ax+p.wr*p.face,L.base+oy+20);ctx.closePath();ctx.fill();
-    }
-    ctx.restore();
-    const hz=ctx.createLinearGradient(0,L.base-120+oy,0,L.base+60+oy);
-    hz.addColorStop(0,"rgba(255,235,215,0)");hz.addColorStop(1,`rgba(240,228,225,${.35-li*.08})`);
-    ctx.fillStyle=hz;ctx.fillRect(0,L.base-120+oy,W,400);
-  });
-}
-
-// ---------- snow particles ----------
-const flakes=[];{const r=rng(99);for(let i=0;i<260;i++)flakes.push({x:r()*W,y:r()*H,z:.3+r()*1.2,p:r()*6.28})}
-function drawSnow(t,wind){
-  ctx.fillStyle="#fff";
-  for(const f of flakes){
-    const vx=-(60+wind*900)*f.z,vy=70*f.z;
-    let x=((f.x+vx*t+Math.sin(t*1.3+f.p)*20)%W+W)%W;
-    let y=((f.y+vy*t)%H+H)%H;
-    ctx.globalAlpha=.35+.5*f.z/1.5;
-    if(wind>.2){ctx.fillRect(x,y,4+wind*40*f.z,1.6*f.z)}
-    else{ctx.beginPath();ctx.arc(x,y,1.4*f.z+.4,0,6.283);ctx.fill()}
-  }
-  ctx.globalAlpha=1;
-}
-function drawWindStreaks(t,a){
+function shadeLeft(a,w=1100){
   if(a<=0)return;
-  const r=rng(7);ctx.strokeStyle="#fff";ctx.lineCap="round";
-  for(let i=0;i<26;i++){
-    const y=r()*H,len=200+r()*500,sp=2500+r()*2000;
-    const x=W+300-((t*sp+r()*4000)%(W+1400));
-    ctx.globalAlpha=a*(.15+r()*.35);ctx.lineWidth=1+r()*2.5;
-    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+len,y-len*.06);ctx.stroke();
-  }
-  ctx.globalAlpha=1;
+  const g=ctx.createLinearGradient(0,0,w,0);
+  g.addColorStop(0,`rgba(4,12,26,${.72*a})`);g.addColorStop(.6,`rgba(4,12,26,${.3*a})`);g.addColorStop(1,"rgba(4,12,26,0)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,H);
+}
+function shadeBottom(a){
+  if(a<=0)return;
+  const g=ctx.createLinearGradient(0,H*.45,0,H);
+  g.addColorStop(0,"rgba(4,12,26,0)");g.addColorStop(1,`rgba(4,12,26,${.75*a})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
 }
 
 // ---------- text ----------
 function txt(s,x,y,size,k,opt={}){
   if(k<=0)return;
   const {align="left",color="#fff",weight=900,family="Disp",style="italic",shadow=true,out=1,maxW=0}=opt;
+  if(out<=0)return;
   ctx.save();
   ctx.font=`${style} ${weight} ${size}px ${family}`;
-  if(maxW&&ctx.measureText(s).width>maxW){size=size*maxW/ctx.measureText(s).width;ctx.font=`${style} ${weight} ${size}px ${family}`}
-  ctx.textAlign=align;ctx.textBaseline="alphabetic";
-  const w=ctx.measureText(s).width;
-  const lx=align==="left"?x:align==="right"?x-w:x-w/2;
-  ctx.beginPath();ctx.rect(lx-40,y-size*1.05,w+80,size*1.32);ctx.clip();
-  const e=eOut(k);
+  if(maxW&&ctx.measureText(s).width>maxW){size*=maxW/ctx.measureText(s).width;ctx.font=`${style} ${weight} ${size}px ${family}`}
+  ctx.textAlign=align;
+  const w=ctx.measureText(s).width, lx=align==="left"?x:align==="right"?x-w:x-w/2;
+  ctx.beginPath();ctx.rect(lx-40,y-size*1.05,w+80,size*1.35);ctx.clip();
   ctx.globalAlpha=out;
-  if(shadow){ctx.shadowColor="rgba(0,20,50,.45)";ctx.shadowBlur=24;ctx.shadowOffsetY=6}
-  ctx.fillStyle=color;ctx.fillText(s,x,y+(1-e)*size*1.2);
+  if(shadow){ctx.shadowColor="rgba(0,10,30,.55)";ctx.shadowBlur=28;ctx.shadowOffsetY=6}
+  ctx.fillStyle=color;ctx.fillText(s,x,y+(1-eOut(k))*size*1.2);
   ctx.restore();
 }
-function tag(s,x,y,size,k,bg=ORANGE,fg="#fff",align="left",out=1){
+function tag(s,x,y,size,k,bg=ORANGE,fg="#fff",out=1){
   if(k<=0||out<=0)return;
   ctx.save();ctx.globalAlpha=out;ctx.font=`italic 900 ${size}px Disp`;
-  const w=ctx.measureText(s).width+size*1.1,h=size*1.55;
-  const lx=align==="left"?x:x-w;
-  const e=eOut(k);
-  ctx.beginPath();ctx.rect(lx-20,y-20,(w+40)*e,h+40);ctx.clip();
-  ctx.fillStyle=bg;
-  ctx.beginPath();ctx.moveTo(lx+h*.25,y);ctx.lineTo(lx+w,y);ctx.lineTo(lx+w-h*.25,y+h);ctx.lineTo(lx,y+h);ctx.closePath();ctx.fill();
-  ctx.fillStyle=fg;ctx.textBaseline="middle";ctx.fillText(s,lx+size*.55,y+h*.53);
+  const w=ctx.measureText(s).width+size*1.1,h=size*1.55,e=eOut(k);
+  ctx.beginPath();ctx.rect(x-20,y-20,(w+40)*e,h+40);ctx.clip();
+  ctx.fillStyle=bg;ctx.beginPath();ctx.moveTo(x+h*.25,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w-h*.25,y+h);ctx.lineTo(x,y+h);ctx.closePath();ctx.fill();
+  ctx.fillStyle=fg;ctx.textBaseline="middle";ctx.fillText(s,x+size*.55,y+h*.53);
   ctx.restore();
+  return w;
 }
 
-// ---------- jacket ----------
-const img=new Image();img.src=CONFIG.jacket;
-const logo=new Image();logo.src=CONFIG.logo;
-const logoA=new Image();logoA.src=CONFIG.logoA;
-const JH=860; // drawn height at scale 1
-function jacketState(t){
-  const a=prog(t,5,6.3);
-  let x=W*.71,y=H*.53,s=.95,rot=0;
-  // entrance
-  y+= (1-eBack(a))*1000; rot=(1-eOut(a))*-0.25; s=lerp(.55,1,eOut(a));
-  // C : center
-  const c=eInOut(prog(t,9.6,10.4)); x=lerp(x,W*.5,c); s*=lerp(1,.88,c);
-  // D : right
-  const d=eInOut(prog(t,15.6,16.4)); x=lerp(x,W*.76,d); s*=lerp(1,1.05,d);
-  // E : left & smaller
-  const e=eInOut(prog(t,18.8,19.7)); x=lerp(x,W*.27,e); s*=lerp(1,.84,e); y=lerp(y,H*.52,e);
-  // float
-  y+=Math.sin(t*1.6)*9; rot+=Math.sin(t*1.1)*.012;
-  return {x,y,s,rot,vis:a>0};
+// ---------- particles ----------
+const flakes=[];{const r=rng(99);for(let i=0;i<220;i++)flakes.push({x:r()*W,y:r()*H,z:.3+r()*1.2,p:r()*6.28})}
+function snow(t,wind,a=1){
+  ctx.fillStyle="#fff";
+  for(const f of flakes){
+    const x=((f.x-(50+wind*1000)*f.z*t+Math.sin(t*1.3+f.p)*20)%W+W)%W, y=((f.y+60*f.z*t)%H+H)%H;
+    ctx.globalAlpha=a*(.25+.45*f.z/1.5);
+    if(wind>.2)ctx.fillRect(x,y,4+wind*40*f.z,1.6*f.z);
+    else{ctx.beginPath();ctx.arc(x,y,1.3*f.z+.3,0,6.283);ctx.fill()}
+  }
+  ctx.globalAlpha=1;
 }
-function jacketToScreen(J,p){ // p in 600x700 svg space
-  const sc=J.s*JH/700, dx=(p[0]-300)*sc, dy=(p[1]-350)*sc;
-  const c=Math.cos(J.rot),s=Math.sin(J.rot);
-  return [J.x+dx*c-dy*s, J.y+dx*s+dy*c];
-}
-function drawJacket(J){
-  if(!J.vis)return;
-  const h=JH*J.s,w=h*600/700;
-  ctx.save();ctx.translate(J.x,J.y);ctx.rotate(J.rot);
-  // ground shadow / glow
-  const gg=ctx.createRadialGradient(0,0,50,0,0,h*.75);
-  gg.addColorStop(0,"rgba(255,240,220,.45)");gg.addColorStop(1,"rgba(255,240,220,0)");
-  ctx.fillStyle=gg;ctx.fillRect(-h,-h,2*h,2*h);
-  ctx.shadowColor="rgba(0,15,40,.55)";ctx.shadowBlur=60;ctx.shadowOffsetY=30;
-  ctx.drawImage(img,-w/2,-h/2,w,h);
-  ctx.shadowColor='transparent';
-  const u=h/700, ls=30*u;
-  ctx.drawImage(logoA,(372-300)*u-ls/2,(226-350)*u-ls/2,ls,ls);
-  ctx.restore();
-}
-
-// ---------- callouts ----------
-function drawCallouts(t,J){
-  const out=1-prog(t,15.3,15.8);
-  if(out<=0)return;
-  CONFIG.features.forEach((f,i)=>{
-    const t0=10.3+i*1.0,k=prog(t,t0,t0+.7);
-    if(k<=0)return;
-    const [ax,ay]=jacketToScreen(J,f.anchor);
-    const lx=f.side<0?W*.5-370:W*.5+370, ly=[250,560,470,780][i];
-    ctx.save();ctx.globalAlpha=out;
-    // pulse dot
-    const pr=prog(t,t0,t0+1.2);
-    ctx.strokeStyle=ORANGE;ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(ax,ay,10+pr*34,0,6.283);ctx.globalAlpha=out*(1-pr);ctx.stroke();
-    ctx.globalAlpha=out;ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ax,ay,11,0,6.283);ctx.fill();
-    ctx.fillStyle=ORANGE;ctx.beginPath();ctx.arc(ax,ay,6,0,6.283);ctx.fill();
-    // line
-    const lk=eOut(prog(t,t0+.1,t0+.6));
-    const ex=lerp(ax,lx,lk),ey=lerp(ay,ly,lk);
-    ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.shadowColor="rgba(0,0,0,.4)";ctx.shadowBlur=8;
-    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ex,ey);ctx.stroke();
-    ctx.restore();
-    const tk=prog(t,t0+.45,t0+1.0);
-    const al=f.side<0?"right":"left", tx=f.side<0?lx-18:lx+18;
-    ctx.save();ctx.globalAlpha=out;
-    txt(f.title,tx,ly-6,42,tk,{align:al,out});
-    txt(f.sub,tx,ly+38,30,prog(t,t0+.6,t0+1.1),{align:al,weight:500,family:"Txt",style:"normal",out});
-    ctx.restore();
-  });
+function streaks(t,a){
+  if(a<=0)return;
+  const r=rng(7);ctx.strokeStyle="#fff";ctx.lineCap="round";
+  for(let i=0;i<26;i++){
+    const y=r()*H,len=200+r()*500,sp=2500+r()*2000,x=W+300-((t*sp+r()*4000)%(W+1400));
+    ctx.globalAlpha=a*(.12+r()*.3);ctx.lineWidth=1+r()*2.5;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+len,y-len*.06);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
 }
 
 // ---------- end card ----------
-function drawEndCard(t){
+function endCard(t){
   const k=eInOut(prog(t,18.9,19.6));
   if(k<=0)return;
-  const x0=lerp(W+200,W*.5,k);
+  const x0=lerp(W+200,W*.6,k);
   ctx.save();
-  ctx.fillStyle=BLUE;
-  ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(W+10,0);ctx.lineTo(W+10,H);ctx.lineTo(x0-180,H);ctx.closePath();ctx.fill();
-  ctx.fillStyle=ORANGE;
-  ctx.beginPath();ctx.moveTo(x0-12,0);ctx.lineTo(x0+6,0);ctx.lineTo(x0-174,H);ctx.lineTo(x0-192,H);ctx.closePath();ctx.fill();
+  ctx.fillStyle=BLUE;ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(W+10,0);ctx.lineTo(W+10,H);ctx.lineTo(x0-180,H);ctx.closePath();ctx.fill();
+  ctx.fillStyle=ORANGE;ctx.beginPath();ctx.moveTo(x0-12,0);ctx.lineTo(x0+6,0);ctx.lineTo(x0-174,H);ctx.lineTo(x0-192,H);ctx.closePath();ctx.fill();
   ctx.restore();
-  const bx=W*.555;
-  const lk=eOut(prog(t,19.6,20.3));
-  if(lk>0){const lw=640,lh=lw*logo.height/logo.width;
-    ctx.save();ctx.globalAlpha=lk;ctx.translate(bx,200+(1-lk)*40);
-    const sc=lerp(.92,1,lk);ctx.scale(sc,sc);ctx.drawImage(logo,0,0,lw,lh);ctx.restore()}
-  ctx.save();ctx.fillStyle=ORANGE;ctx.fillRect(bx,490,lerp(0,520,eOut(prog(t,19.9,20.5))),8);ctx.restore();
-  txt("VESTE "+CONFIG.product,bx,585,54,prog(t,20.1,20.7),{shadow:false,maxW:W-bx-90});
-  txt("En magasin et sur "+CONFIG.site,bx,650,36,prog(t,20.4,21),{weight:500,family:"Txt",style:"normal",shadow:false,color:"#dbe9ff"});
-  tag("JE DÉCOUVRE  →",bx,710,40,prog(t,20.8,21.4),"#fff",BLUE);
+  const bx=W*.6+10, lk=eOut(prog(t,19.6,20.3));
+  if(lk>0){const lw=620,lh=lw*logo.height/logo.width;
+    ctx.save();ctx.globalAlpha=lk;ctx.translate(bx,230+(1-lk)*40);const sc=lerp(.92,1,lk);ctx.scale(sc,sc);
+    ctx.drawImage(logo,0,0,lw,lh);ctx.restore()}
+  ctx.save();ctx.fillStyle=ORANGE;ctx.fillRect(bx,500,lerp(0,500,eOut(prog(t,19.9,20.5))),8);ctx.restore();
+  txt("VESTE "+CONFIG.product,bx,595,54,prog(t,20.1,20.7),{shadow:false,maxW:W-bx-80});
+  txt("En magasin et sur "+CONFIG.site,bx,660,36,prog(t,20.4,21),{weight:500,family:"Txt",style:"normal",shadow:false,color:"#dbe9ff"});
+  tag("JE DÉCOUVRE  →",bx,720,40,prog(t,20.8,21.4),"#fff",BLUE);
 }
 
-// ---------- main render ----------
+// ---------- main ----------
 function render(t){
-  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter="none";
-  // camera
-  const cam={x:t*38, y:lerp(140,0,eInOut(prog(t,0,5)))};
-  const zoom=lerp(1.12,1.0,eOut(prog(t,0,5)))*lerp(1,1.04,prog(t,5,23));
-  const blur=lerp(0,7,eInOut(prog(t,5,6)))*(1-eInOut(prog(t,15.6,16.4)))+eInOut(prog(t,15.6,16.4))*3;
-  ctx.save();
-  ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-W/2,-H/2);
-  ctx.filter=blur>.2?`blur(${blur.toFixed(2)}px)`:"none";
-  drawMountains(t,cam);
-  ctx.restore();ctx.filter="none";
-  // darken behind product
-  const dk=.35*eInOut(prog(t,5,6));
-  if(dk>0){const vg=ctx.createRadialGradient(W/2,H/2,300,W/2,H/2,1200);
-    vg.addColorStop(0,`rgba(5,20,45,${dk*.3})`);vg.addColorStop(1,`rgba(5,20,45,${dk*1.6})`);
-    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H)}
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;
+  ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
 
-  const wind=Math.max(prog(t,4.6,5.2)*(1-prog(t,6,7.2)), prog(t,18.6,19)*(1-prog(t,19.4,20)));
-  drawSnow(t,wind);
+  // A 0-5 : dos, au-dessus des nuages
+  if(t<5.2){const k=prog(t,0,5.2);
+    photo(P.dos,lerp(1.12,1.32,eInOut(k)),.38,lerp(.5,.42,k));
+    shadeLeft(1,1150);}
+  // B 5-10 : face, veste en vedette
+  if(t>=5&&t<10.3){const k=prog(t,5,10.3);
+    photo(P.face,lerp(1.2,1.06,eOut(k)),lerp(.34,.37,k),.47,prog(t,5,5.15)*(1-prog(t,10,10.3)));
+    shadeLeft(prog(t,5.3,6),1000);}
+  // C 10-16 : détail déperlant
+  if(t>=10&&t<16.3){const k=prog(t,10,16.3);
+    photo(P.detail,lerp(1.0,1.45,eInOut(k)),lerp(.5,.6,eInOut(k)),lerp(.5,.66,eInOut(k)),prog(t,10,10.3)*(1-prog(t,16,16.3)));
+    shadeLeft(.8*prog(t,10.3,11)*(1-prog(t,16,16.3)),1000);}
+  // D 16-19 : dos, recul
+  if(t>=16&&t<19.7){const k=prog(t,16,19.7);
+    photo(P.dos,lerp(1.5,1.18,eOut(k)),.36,.45,prog(t,16,16.3));
+    shadeLeft(1-prog(t,18.8,19.3),1150);}
+  // E 19-23 : face à gauche + carton final
+  if(t>=18.9){const k=prog(t,18.9,23);
+    photo(P.face,lerp(1.0,1.06,k),.505,.5,prog(t,18.9,19.4),0,lerp(W,W*.62,eInOut(prog(t,18.9,19.6))));}
 
-  // scene A text
-  const aOut=1-prog(t,4.4,4.9);
-  txt("LÀ-HAUT,",120,470,150,prog(t,.8,1.5),{out:aOut});
-  txt("LE FROID NE",120,620,150,prog(t,1.9,2.6),{out:aOut});
-  txt("PARDONNE PAS.",120,770,150,prog(t,2.3,3.0),{out:aOut,color:"#fff"});
+  const wind=Math.max(prog(t,4.6,5.1)*(1-prog(t,5.6,6.6)),prog(t,9.7,10)*(1-prog(t,10.2,10.6)),prog(t,15.7,16)*(1-prog(t,16.2,16.6)),prog(t,18.6,19)*(1-prog(t,19.3,19.8)));
+  snow(t,wind,t>10&&t<16?.4:.8);
+  streaks(t,wind);
 
-  const J=jacketState(t);
-  drawJacket(J);
-  drawWindStreaks(t,wind);
-
-  // scene B text
-  const bOut=1-prog(t,9.4,9.8);
-  tag("NOUVEAUTÉ",130,300,38,prog(t,6.3,6.8),ORANGE,"#fff","left",bOut);
-  txt("VESTE",130,500,160,prog(t,6.6,7.2),{out:bOut});
-  txt(CONFIG.product,130,640,120,prog(t,6.9,7.5),{out:bOut,color:ORANGE});
-  txt("Imperméable. Coupe-vent. Respirante.",134,730,40,prog(t,7.6,8.2),{weight:600,family:"Txt",style:"normal",out:bOut});
-
-  // scene C callouts
-  drawCallouts(t,J);
-
-  // scene D tagline
-  const dOut=1-prog(t,18.7,19.0);
-  txt("FAITE",110,390,150,prog(t,16.3,16.9),{out:dOut});
-  txt("POUR LES",110,550,150,prog(t,16.6,17.2),{out:dOut});
-  txt("SOMMETS.",110,710,150,prog(t,16.9,17.5),{out:dOut,color:ORANGE});
+  // A text
+  const aO=1-prog(t,4.4,4.9);
+  txt("LÀ-HAUT,",110,430,120,prog(t,.8,1.5),{out:aO});
+  txt("LE FROID NE",110,560,120,prog(t,1.9,2.6),{out:aO});
+  txt("PARDONNE PAS.",110,690,120,prog(t,2.3,3.0),{out:aO});
+  // B text
+  const bO=1-prog(t,9.5,9.9);
+  tag("NOUVEAUTÉ",110,330,36,prog(t,6.0,6.5),ORANGE,"#fff",bO);
+  txt("VESTE",110,520,140,prog(t,6.3,6.9),{out:bO});
+  txt(CONFIG.product,110,640,96,prog(t,6.6,7.2),{out:bO,color:ORANGE,maxW:760});
+  txt("Conçue pour la haute montagne.",114,720,38,prog(t,7.3,7.9),{weight:600,family:"Txt",style:"normal",out:bO});
+  // C text
+  const cO=1-prog(t,15.5,15.9);
+  txt("IMPERMÉABLE.",110,250,130,prog(t,10.7,11.3),{out:cO});
+  txt("La pluie glisse. Tu restes au sec.",114,320,38,prog(t,11.3,11.9),{weight:600,family:"Txt",style:"normal",out:cO});
+  let cx=110;
+  CONFIG.atouts.forEach((a,i)=>{const w=tag(a,cx,370,30,prog(t,12.4+i*.7,12.9+i*.7),i%2?"#fff":ORANGE,i%2?BLUE:"#fff",cO);cx+=(w||0)+22;
+    if(!w){ctx.save();ctx.font="italic 900 30px Disp";cx+=ctx.measureText(a).width+33+22;ctx.restore()}});
+  // D text
+  const dO=1-prog(t,18.7,19.0);
+  txt("FAITE",110,390,150,prog(t,16.4,17.0),{out:dO});
+  txt("POUR LES",110,550,150,prog(t,16.7,17.3),{out:dO});
+  txt("SOMMETS.",110,710,150,prog(t,17.0,17.6),{out:dO,color:ORANGE});
 
   // corner mark
-  {const ca=prog(t,.6,1.4)*(1-prog(t,18.8,19.2));
-   if(ca>0){ctx.save();ctx.globalAlpha=ca*.9;ctx.drawImage(logoA,W-150,56,84,84);ctx.restore()}}
-  drawEndCard(t);
+  const ca=prog(t,.6,1.4)*(1-prog(t,18.8,19.2));
+  if(ca>0){ctx.save();ctx.globalAlpha=ca*.9;ctx.drawImage(logoA,W-150,56,84,84*logoA.height/logoA.width);ctx.restore()}
+  endCard(t);
 
-  // flash transitions
-  const fl=Math.max(1-prog(t,5.0,5.45),0)*(t>=5?1:0)*.75;
-  if(fl>0){ctx.fillStyle=`rgba(255,255,255,${fl})`;ctx.fillRect(0,0,W,H)}
-  // fade in/out
-  const fi=1-prog(t,0,.6), fo=prog(t,22.3,23);
+  // flashes on cuts
+  for(const c of [5,10,16]){const f=(t>=c?1-prog(t,c,c+.4):0)*.7;
+    if(f>0){ctx.fillStyle=`rgba(255,255,255,${f})`;ctx.fillRect(0,0,W,H)}}
+  const fi=1-prog(t,0,.6),fo=prog(t,22.3,23);
   if(fi>0||fo>0){ctx.fillStyle=`rgba(0,0,0,${Math.max(fi,fo)})`;ctx.fillRect(0,0,W,H)}
-  // vignette
   const v=ctx.createRadialGradient(W/2,H/2,600,W/2,H/2,1250);
-  v.addColorStop(0,"rgba(0,0,0,0)");v.addColorStop(1,"rgba(0,0,0,.35)");
-  ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+  v.addColorStop(0,"rgba(0,0,0,0)");v.addColorStop(1,"rgba(0,0,0,.35)");ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
 }
 window.render=render;window.T=T;
-window.ready=Promise.all([document.fonts.load("italic 900 50px Disp"),document.fonts.load("italic 700 50px Disp"),document.fonts.load("600 50px Txt"),document.fonts.load("500 50px Txt"),...[img,logo,logoA].map(im=>new Promise(r=>{if(im.complete)r();else im.onload=r}))]);
+window.ready=Promise.all([document.fonts.load("italic 900 50px Disp"),document.fonts.load("600 50px Txt"),document.fonts.load("500 50px Txt"),
+  ...[P.dos,P.face,P.detail,logo,logoA].map(im=>new Promise(r=>{if(im.complete)r();else im.onload=r}))]);
 </script>
 </body></html>
