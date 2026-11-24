@@ -18,10 +18,11 @@ const FPS = 30;
   }
   const T = await page.evaluate(() => window.T);
   const ff = spawn('ffmpeg', ['-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', path.join(__dirname, 'video_silent.mp4')],
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', path.join(__dirname, process.argv[2] === 'part' ? process.argv[5] : 'video_silent.mp4')],
     { stdio: ['pipe', 'ignore', 'inherit'] });
   const n = Math.round(T * FPS);
-  for (let i = 0; i < n; i++) {
+  const a0 = process.argv[2] === 'part' ? +process.argv[3] : 0, a1 = process.argv[2] === 'part' ? Math.min(+process.argv[4], n) : n;
+  for (let i = a0; i < a1; i++) {
     await page.evaluate(t => render(t), i / FPS);
     const buf = await canvas.screenshot({ type: 'jpeg', quality: 95 });
     if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));

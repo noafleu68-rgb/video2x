@@ -71,8 +71,6 @@
   <!-- hand pockets -->
   <line x1="200" y1="470" x2="232" y2="580" stroke="#041d3b" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
   <line x1="400" y1="470" x2="368" y2="580" stroke="#041d3b" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
-  <!-- logo spot (mountain) -->
-  <path d="M352,236 L366,214 L374,226 L380,218 L392,236 Z" fill="#fff" opacity="0.95"/>
   <!-- hem + toggles -->
   <path d="M176,628 Q300,650 424,628 L424,642 Q300,664 176,642 Z" fill="#06336a"/>
   <circle cx="190" cy="650" r="6" fill="#ff7a1a"/>
