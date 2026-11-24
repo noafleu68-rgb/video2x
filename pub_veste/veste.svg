@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 700" width="1200" height="1400">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a4f9e"/>
+      <stop offset="0.35" stop-color="#1676e0"/>
+      <stop offset="0.55" stop-color="#1a82f0"/>
+      <stop offset="1" stop-color="#0b4790"/>
+    </linearGradient>
+    <linearGradient id="sleeveL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#083f80"/>
+      <stop offset="0.6" stop-color="#136bcf"/>
+      <stop offset="1" stop-color="#0d58ad"/>
+    </linearGradient>
+    <linearGradient id="sleeveR" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#062f61"/>
+      <stop offset="0.6" stop-color="#0f5fba"/>
+      <stop offset="1" stop-color="#0b4f9b"/>
+    </linearGradient>
+    <linearGradient id="yoke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a1a"/>
+      <stop offset="1" stop-color="#e85a00"/>
+    </linearGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a7ee8"/>
+      <stop offset="1" stop-color="#0c56a8"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.28"/>
+      <stop offset="0.4" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="hemShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.7" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- hood (back) -->
+  <path d="M205,160 Q200,62 300,40 Q400,62 395,160 Q300,140 205,160 Z" fill="url(#hood)" stroke="#06336a" stroke-width="3"/>
+  <path d="M238,152 Q240,92 300,78 Q360,92 362,152 Q300,168 238,152 Z" fill="#06284f"/>
+  <path d="M248,150 Q252,104 300,92 Q348,104 352,150" fill="none" stroke="#ff7a1a" stroke-width="4"/>
+
+  <!-- left sleeve -->
+  <path d="M205,150 L125,186 Q82,206 74,262 L40,540 L108,556 L152,330 L176,262 Z" fill="url(#sleeveL)" stroke="#06336a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M42,525 L108,540 L104,572 L36,558 Z" fill="#0a2a52" stroke="#06336a" stroke-width="3"/>
+  <path d="M125,186 Q82,206 74,262 L66,330 L110,318 L118,262 Q122,220 150,196 Z" fill="url(#yoke)" opacity="0.95"/>
+  <!-- right sleeve -->
+  <path d="M395,150 L475,186 Q518,206 526,262 L560,540 L492,556 L448,330 L424,262 Z" fill="url(#sleeveR)" stroke="#06336a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M558,525 L492,540 L496,572 L564,558 Z" fill="#0a2a52" stroke="#06336a" stroke-width="3"/>
+  <path d="M475,186 Q518,206 526,262 L534,330 L490,318 L482,262 Q478,220 450,196 Z" fill="url(#yoke)" opacity="0.85"/>
+
+  <!-- body -->
+  <path d="M200,150 Q300,182 400,150 L428,252 L424,642 Q300,664 176,642 L172,252 Z" fill="url(#body)" stroke="#06336a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- yoke colour block -->
+  <path d="M200,150 Q300,182 400,150 L418,216 Q300,248 182,216 Z" fill="url(#yoke)" stroke="#a83f00" stroke-width="2"/>
+  <!-- collar -->
+  <path d="M248,140 Q300,160 352,140 L356,186 Q300,204 244,186 Z" fill="#0c56a8" stroke="#06336a" stroke-width="3"/>
+  <!-- side panels -->
+  <path d="M172,252 L200,262 L196,646 L176,642 Z" fill="#073d7a" opacity="0.8"/>
+  <path d="M428,252 L400,262 L404,646 L424,642 Z" fill="#052f60" opacity="0.8"/>
+  <!-- seams -->
+  <path d="M186,330 Q300,350 414,330" fill="none" stroke="#06336a" stroke-width="2" stroke-dasharray="6 5" opacity="0.6"/>
+  <!-- main zip -->
+  <line x1="300" y1="160" x2="300" y2="652" stroke="#041d3b" stroke-width="7"/>
+  <line x1="300" y1="160" x2="300" y2="652" stroke="#5a6b80" stroke-width="2" stroke-dasharray="2 3"/>
+  <rect x="293" y="192" width="14" height="26" rx="3" fill="#ccd6e0" stroke="#3a4a5c" stroke-width="2"/>
+  <!-- chest pockets -->
+  <line x1="222" y1="262" x2="268" y2="372" stroke="#041d3b" stroke-width="5" stroke-linecap="round"/>
+  <line x1="378" y1="262" x2="332" y2="372" stroke="#041d3b" stroke-width="5" stroke-linecap="round"/>
+  <rect x="216" y="252" width="10" height="20" rx="2" fill="#ff7a1a" transform="rotate(-23 221 262)"/>
+  <rect x="374" y="252" width="10" height="20" rx="2" fill="#ff7a1a" transform="rotate(23 379 262)"/>
+  <!-- hand pockets -->
+  <line x1="200" y1="470" x2="232" y2="580" stroke="#041d3b" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <line x1="400" y1="470" x2="368" y2="580" stroke="#041d3b" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <!-- logo spot (mountain) -->
+  <path d="M352,236 L366,214 L374,226 L380,218 L392,236 Z" fill="#fff" opacity="0.95"/>
+  <!-- hem + toggles -->
+  <path d="M176,628 Q300,650 424,628 L424,642 Q300,664 176,642 Z" fill="#06336a"/>
+  <circle cx="190" cy="650" r="6" fill="#ff7a1a"/>
+  <circle cx="410" cy="650" r="6" fill="#ff7a1a"/>
+  <line x1="190" y1="640" x2="190" y2="662" stroke="#ff7a1a" stroke-width="2"/>
+  <line x1="410" y1="640" x2="410" y2="662" stroke="#ff7a1a" stroke-width="2"/>
+  <!-- reflective strip -->
+  <path d="M120,420 L150,415" stroke="#e8eef5" stroke-width="5" opacity="0.8"/>
+  <!-- shine / shading -->
+  <path d="M200,150 Q300,182 400,150 L428,252 L424,642 Q300,664 176,642 L172,252 Z" fill="url(#shine)"/>
+  <path d="M200,150 Q300,182 400,150 L428,252 L424,642 Q300,664 176,642 L172,252 Z" fill="url(#hemShade)"/>
+</svg>
