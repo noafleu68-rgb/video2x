@@ -1,0 +1,20 @@
+<!doctype html><html><body style="margin:0;background:#9aa7a0">
+<canvas id="g" width="1600" height="800"></canvas>
+<script src="node_modules/three/build/three.min.js"></script>
+<script src="jacket_sim.js"></script>
+<script src="jacket3d.js"></script>
+<script>
+const logo=new Image();logo.src="logo_alpeo_A_blanc.png";
+window.shot=(yaws,pitch=0)=>{
+  const R=new THREE.WebGLRenderer({canvas:document.getElementById('g'),antialias:true,preserveDrawingBuffer:true});
+  R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.setScissorTest(true);
+  const S=new THREE.Scene();
+  S.add(new THREE.HemisphereLight(0xcfe0ee,0x56653f,1.0));
+  const sun=new THREE.DirectionalLight(0xffd9a8,2.4);sun.position.set(3,2,-3);S.add(sun);
+  const key=new THREE.DirectionalLight(0xffffff,1.2);key.position.set(-2,2,4);S.add(key);
+  const J=buildJacket(logo);S.add(J);
+  const C=new THREE.PerspectiveCamera(30,400/800,.1,100);C.position.set(0,0,4.2);
+  yaws.forEach((y,i)=>{J.rotation.set(pitch,y,0);R.setViewport(i*400,0,400,800);R.setScissor(i*400,0,400,800);R.setClearColor(0x9aa7a0,1);R.clear();R.render(S,C);});
+};
+window.ready=new Promise(r=>logo.onload=r);
+</script></body></html>
